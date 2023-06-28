@@ -1,10 +1,14 @@
 package com.example.remindmeahead
 
 import android.content.Context
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
+import androidx.annotation.RequiresApi
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,13 +17,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -35,6 +44,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,6 +52,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester.Companion.createRefs
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.compose.ChainStyle
@@ -49,13 +60,22 @@ import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.remindmeahead.database.Event
+import com.example.remindmeahead.database.MainViewModel
+import com.example.remindmeahead.database.Note
 import com.example.remindmeahead.ui.theme.AppTheme
 import com.marosseleng.compose.material3.datetimepickers.date.ui.dialog.DatePickerDialog
+import dagger.hilt.android.AndroidEntryPoint
 import java.time.LocalDate
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val mainViewModel:MainViewModel by viewModels()
+
         setContent {
             AppTheme {
                 // A surface container using the 'background' color from the theme
@@ -63,7 +83,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    HomeScaffold()
+                    HomeScaffold(mainViewModel)
                 }
             }
         }
@@ -75,8 +95,9 @@ enum class Screens {
     Add,
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun HomeScaffold() {
+fun HomeScaffold(mainViewModel:MainViewModel) {
     val navController = rememberNavController()
     var state by remember {
         mutableStateOf(true)
@@ -96,10 +117,10 @@ fun HomeScaffold() {
                 if (navController.currentBackStackEntry?.destination?.route.toString() == Screens.Home.name) {
                     state = true
                 }
-                LandingScreen(padding)
+                LandingScreen(padding,mainViewModel)
             }
             composable(route = Screens.Add.name) {
-                AddScreen(padding, LocalContext.current)
+                AddScreen(padding, LocalContext.current,mainViewModel)
             }
         }
     }
@@ -107,11 +128,13 @@ fun HomeScaffold() {
 
 @Composable
 fun LandingScreen(
-    padding: PaddingValues,
+    padding: PaddingValues,mainViewModel:MainViewModel
 ) {
     var category by remember {
         mutableStateOf("")
     }
+    val eventList=mainViewModel.allData.collectAsState(listOf())
+
     ConstraintLayout(Modifier.padding(padding)) {
         val (radio, list) = createRefs()
         val options = listOf("Birthday", "Wedding", "Memorial", "Other")
@@ -154,21 +177,44 @@ fun LandingScreen(
                 }
             }
         }
+
         LazyColumn(modifier = Modifier.constrainAs(list) {
             top.linkTo(radio.bottom)
             start.linkTo(parent.start)
             end.linkTo(parent.end)
         }) {
-            /*items(){
-                TODO WITH DETAILS IN CARD FORMAT
-            }*/
+
+            items(eventList.value.size){index ->
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    elevation = CardDefaults.cardElevation(
+                        defaultElevation = 10.dp
+                    )
+                ){
+                    Column() {
+                        val event=eventList.value[index]
+                        Text(text = event.category)
+                        Text(text = event.fname)
+                        Text(text = event.lname)
+                        Text(text = event.date)
+                        IconButton(onClick = { mainViewModel.deleteEvent(event) }) {
+                            Icon(Icons.Default.Delete,"delete")
+                        }
+                        IconButton(onClick = { //TODO edit page
+                             }) {
+                            Icon(Icons.Default.Edit,"edit")
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalComposeUiApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun AddScreen(padding: PaddingValues, context: Context) {
+fun AddScreen(padding: PaddingValues, context: Context,mainViewModel:MainViewModel) {
     ConstraintLayout(
         modifier = Modifier
             .padding(padding)
@@ -176,7 +222,8 @@ fun AddScreen(padding: PaddingValues, context: Context) {
     ) {
         val (type, fnm, lnm, cal, note, buttons) = createRefs()
         val options = listOf("Birthday", "Wedding", "Memorial", "Other")
-        val times = listOf("1 day", "2 days", "3 days", "i week", "2 weeks")
+        val times = listOf("1 day", "2 days", "3 days", "1 week", "2 weeks")
+        val placeHolders = listOf("Happy Birthday", "Happy wedding day", "My Deepest Condolences", "Remind the event")
         val vChain =
             createVerticalChain(type, fnm, lnm, cal, note, buttons, chainStyle = ChainStyle.Spread)
 
@@ -188,6 +235,9 @@ fun AddScreen(padding: PaddingValues, context: Context) {
         }
         var eventCategory by remember {
             mutableStateOf("")
+        }
+        var remindMeAt by remember {
+            mutableStateOf(0)
         }
         var firstName by remember {
             mutableStateOf("")
@@ -204,6 +254,9 @@ fun AddScreen(padding: PaddingValues, context: Context) {
         var tillDate by remember {
             mutableStateOf("")
         }
+        var notesToSend by remember {
+            mutableStateOf("")
+        }
         var moreOptions by remember {
             mutableStateOf(false)
         }
@@ -216,6 +269,7 @@ fun AddScreen(padding: PaddingValues, context: Context) {
         var date: LocalDate? by remember {
             mutableStateOf(null)
         }
+
         if (isDialogShown) {
             DatePickerDialog(
                 onDismissRequest = { isDialogShown = false },
@@ -313,7 +367,13 @@ fun AddScreen(padding: PaddingValues, context: Context) {
                 Text(text = "More Options")
             }
             Button(onClick = {
-                //TODO ENTER DETAILS INTO ROOMDB
+                mainViewModel.addEvent(Event(
+                    fname = firstName,
+                    lname = lastName,
+                    note = eventNote,
+                    category = eventCategory,
+                    date =date.toString(), toRemind = date.toString(),
+                ))
             }, modifier = Modifier
                 .padding(end = 35.dp)
                 .constrainAs(confirm) {}, shape = RoundedCornerShape(10.dp)
@@ -331,7 +391,7 @@ fun AddScreen(padding: PaddingValues, context: Context) {
                 Button(onClick = {
                     moreOptions = false
                     if (phNumber != "" && phNumber.length == 10) {
-                        //TODO ENTER DETAILS INTO ROOMDB AND SMSMANAGER
+                        mainViewModel.addNote(Note(notesToSend = notesToSend, number = phNumber, sent = true))
                     } else {
                         Toast.makeText(context, "Invalid Mobile Number", Toast.LENGTH_LONG).show()
                     }
@@ -350,10 +410,12 @@ fun AddScreen(padding: PaddingValues, context: Context) {
                 Text(text = "Add details")
             }, text = {
                 ConstraintLayout() {
-                    val (num, tim) = createRefs()
-                    val mvChain = createVerticalChain(num, tim, chainStyle = ChainStyle.SpreadInside)
+                    val (num, tim,tim2) = createRefs()
+                    val mvChain = createVerticalChain(num, tim,tim2, chainStyle = ChainStyle.SpreadInside)
                     ExposedDropdownMenuBox(expanded = dddm,
-                        onExpandedChange = { dddm = !dddm }, modifier = Modifier.padding(10.dp).constrainAs(num){}) {
+                        onExpandedChange = { dddm = !dddm }, modifier = Modifier
+                            .padding(10.dp)
+                            .constrainAs(num) {}) {
                         TextField(
                             modifier = Modifier.menuAnchor(),
                             value = tillDate,
@@ -375,7 +437,11 @@ fun AddScreen(padding: PaddingValues, context: Context) {
                                 DropdownMenuItem(
                                     text = { Text(text = selectionOption) },
                                     onClick = {
-                                        eventCategory = selectionOption
+                                        if(selectionOption==times[0]){remindMeAt=1}
+                                        else if(selectionOption==times[1]){remindMeAt=2}
+                                        else if(selectionOption==times[2]){remindMeAt=3}
+                                        else if(selectionOption==times[3]){remindMeAt=4}
+                                        else if(selectionOption==times[4]){remindMeAt=5}
                                         dddm = false
                                     })
                             }
@@ -390,7 +456,24 @@ fun AddScreen(padding: PaddingValues, context: Context) {
                             Text(
                                 text = "Optional"
                             )
-                        }, modifier = Modifier.padding(10.dp).constrainAs(tim){})
+                        }, modifier = Modifier
+                            .padding(10.dp)
+                            .constrainAs(tim) {})
+                    OutlinedTextField(
+                        value = notesToSend,
+                        onValueChange = { notesToSend = it },
+                        label = { Text("Notes To Send") },
+                        placeholder = {
+                            if(eventCategory=="Birthday"){notesToSend=placeHolders[0]}
+                            else if(eventCategory=="Wedding"){notesToSend=placeHolders[1]}
+                            else if(eventCategory=="Memorial"){notesToSend=placeHolders[2]}
+                            else if(eventCategory=="Other"){notesToSend=placeHolders[3]}
+                            Text(
+                                text = notesToSend
+                            )
+                        }, modifier = Modifier
+                            .padding(10.dp)
+                            .constrainAs(tim2) {})
                 }
             })
         }

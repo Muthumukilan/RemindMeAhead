@@ -2,15 +2,18 @@ package com.example.remindmeahead.database
 
 import androidx.room.TypeConverter
 import java.sql.Date
+import java.text.SimpleDateFormat
 
 
 class converters {
+    private val format = SimpleDateFormat("yyyy-MM-dd")
     @TypeConverter
-    fun DateToLong(date: Date):Long{
-        return date.time
+    fun fromDate(date: Date): String {
+        return format.format(date)
     }
+
     @TypeConverter
-    fun LongToDate(timeLong:Long):Date{
-        return Date(timeLong)
+    fun toDate(dateString: String): Date {
+        return (format.parse(dateString) as Date?)!!
     }
 }

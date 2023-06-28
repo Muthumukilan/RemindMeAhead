@@ -2,23 +2,24 @@ package com.example.remindmeahead.database
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import java.sql.Date
+import java.time.LocalDate
 
 @Entity(tableName = "eventTable")
 data class Event(
     @PrimaryKey(autoGenerate = true)
-    val eid:Int,
+    val eid:Int=0,
     val category:String,
     val fname:String,
     val lname:String,
-    val date: Date,
-    val toRemind:Date,
-    val fKey:Int=0,
+    val note:String,
+    val date: String,
+    val toRemind: String,
+    val fKey:Int=-1,
 )
 @Entity(tableName = "note")
 data class Note(
     @PrimaryKey(autoGenerate = true)
-    val nid: Int,
+    val nid: Int=0,
     val notesToSend:String="",
     val number:String="",
     val sent:Boolean=false
