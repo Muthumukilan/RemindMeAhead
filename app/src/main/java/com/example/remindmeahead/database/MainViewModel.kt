@@ -1,11 +1,5 @@
 package com.example.remindmeahead.database
 
-import android.content.ClipData
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.State
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -13,12 +7,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import kotlin.reflect.KProperty
 
 
 interface viewAbstract{
     val allData:Flow<List<Event>>
     fun allCat(category: String):Flow<List<Event>>
+    fun getById(eid:Int):Flow<List<Event>>
     fun getNote(fid:Int):Note
     fun addEvent(event: Event)
     fun addNote(note: Note)
@@ -37,7 +31,9 @@ class MainViewModel
     override fun allCat(category: String): Flow<List<Event>> {
         return repo.getByCat(category)
     }
-
+    override fun getById(eid:Int): Flow<List<Event>> {
+        return repo.getById(eid)
+    }
     override fun getNote(fid:Int): Note= repo.getNote(fid)
 
     override fun addEvent(event: Event) {
