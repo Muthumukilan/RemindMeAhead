@@ -510,7 +510,7 @@ fun AddScreen(
                     moreOptions = false
                     if (phNumber != "" && phNumber.length == 10) {
                         mainViewModel.addNote(
-                            Note(
+                            Note( //TODO CHANGE ONCE DATABASE IS SINGLE TABLE
                                 notesToSend = notesToSend,
                                 number = phNumber,
                                 sent = true
@@ -530,7 +530,7 @@ fun AddScreen(
                         Toast.makeText(context, "Invalid Mobile Number", Toast.LENGTH_SHORT).show()
                     }
                 }, shape = RoundedCornerShape(10.dp)) {
-                    Text(text = "Confirm")
+                    Text(text = "Send SMS")
                 }
             }, dismissButton = {
                 TextButton(onClick = {
@@ -893,6 +893,14 @@ fun EditScreen(
                     note = eNote,
                     date = eDate,
                     toRemind = eRemindDate
+                )
+            )
+            mainViewModel.updateNote( //TODO CHANGE ONCE DATABASE IS SINGLE TABLE
+                note = Note(
+                    nid = eValue,
+                    notesToSend = eNNote,
+                    number = eNumber,
+                    sent = eMessage
                 )
             )
             navController.navigate(route = Screens.Home.name)
