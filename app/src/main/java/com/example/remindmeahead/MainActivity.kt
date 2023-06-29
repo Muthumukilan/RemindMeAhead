@@ -3,6 +3,7 @@ package com.example.remindmeahead
 import android.content.Context
 import android.os.Build
 import android.os.Bundle
+import android.provider.ContactsContract
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -70,7 +71,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.remindmeahead.database.Event
 import com.example.remindmeahead.database.MainViewModel
-import com.example.remindmeahead.database.Note
+
 import com.example.remindmeahead.ui.theme.AppTheme
 import com.marosseleng.compose.material3.datetimepickers.date.ui.dialog.DatePickerDialog
 import dagger.hilt.android.AndroidEntryPoint
@@ -148,8 +149,10 @@ fun LandingScreen(
     var category by remember {
         mutableStateOf("")
     }
-    val eventList = mainViewModel.allData.collectAsState(listOf())
-
+    var eventList = mainViewModel.allData.collectAsState(listOf())
+    if(category.isNotBlank()){
+        eventList=mainViewModel.allCat(category).collectAsState(initial = listOf())
+    }
     ConstraintLayout(Modifier.padding(padding)) {
         val (radio, list) = createRefs()
         val options = listOf("Birthday", "Wedding", "MemorialDay", "OtherEvents")
@@ -204,11 +207,9 @@ fun LandingScreen(
 
             items(eventList.value.size) { index ->
                 val event = eventList.value[index]
-                if (category == "") {
-                    Content(event, mainViewModel, navController)
-                } else if (category == event.category) {
-                    Content(event, mainViewModel, navController)
-                }
+
+                Content(event, mainViewModel, navController)
+
             }
         }
     }
@@ -369,6 +370,9 @@ fun AddScreen(
         var moreOptions by remember {
             mutableStateOf(false)
         }
+        var sent by remember {
+            mutableStateOf(false)
+        }
         var isDialogShown: Boolean by rememberSaveable {
             mutableStateOf(false)
         }
@@ -509,13 +513,8 @@ fun AddScreen(
                 Button(onClick = {
                     moreOptions = false
                     if (phNumber != "" && phNumber.length == 10) {
-                        mainViewModel.addNote(
-                            Note( //TODO CHANGE ONCE DATABASE IS SINGLE TABLE
-                                notesToSend = notesToSend,
-                                number = phNumber,
-                                sent = true
-                            )
-                        )
+
+                        sent = true
                         mainViewModel.addEvent(
                             Event(
                                 fname = firstName,
@@ -523,6 +522,9 @@ fun AddScreen(
                                 note = eventNote,
                                 category = eventCategory,
                                 date = date.toString(), toRemind = remindMeAt.toString(),
+                                sent = sent,
+                                number = phNumber,
+                                notesToSend = notesToSend
                             )
                         )
                         navController.navigate(route = Screens.Home.name)
@@ -707,6 +709,9 @@ fun EditScreen(
             eNote = (eventList.value[x].note)
             eDate = (eventList.value[x].date)
             eRemindDate = (eventList.value[x].toRemind)
+            eMessage=(eventList.value[x].sent)
+            eNNote=(eventList.value[x].note)
+            eNumber=(eventList.value[x].number)
         }
         x++
     }
@@ -892,17 +897,13 @@ fun EditScreen(
                     lname = eLName,
                     note = eNote,
                     date = eDate,
-                    toRemind = eRemindDate
-                )
-            )
-            mainViewModel.updateNote( //TODO CHANGE ONCE DATABASE IS SINGLE TABLE
-                note = Note(
-                    nid = eValue,
-                    notesToSend = eNNote,
+                    toRemind = eRemindDate,
                     number = eNumber,
+                    notesToSend = eNNote,
                     sent = eMessage
                 )
             )
+
             navController.navigate(route = Screens.Home.name)
         }, shape = RoundedCornerShape(10.dp), modifier = Modifier
             .width(175.dp)

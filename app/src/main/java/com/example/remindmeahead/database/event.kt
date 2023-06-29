@@ -14,13 +14,8 @@ data class Event(
     val note:String,
     val date: String,
     val toRemind: String,
-    val fKey:Int=-1,
-)
-@Entity(tableName = "note")
-data class Note(
-    @PrimaryKey(autoGenerate = true)
-    val nid: Int=0,
     val notesToSend:String="",
     val number:String="",
-    val sent:Boolean=false
+    val sent:Boolean=false,
 )
+
