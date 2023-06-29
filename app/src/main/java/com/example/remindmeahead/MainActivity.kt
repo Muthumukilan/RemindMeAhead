@@ -16,13 +16,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
@@ -38,6 +41,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -50,13 +54,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment.Companion.CenterVertically
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ChainStyle
 import androidx.constraintlayout.compose.ConstraintLayout
+import androidx.constraintlayout.compose.Dimension
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -123,9 +130,11 @@ fun HomeScaffold(mainViewModel: MainViewModel) {
                 AddScreen(padding, LocalContext.current, mainViewModel, navController)
                 state = false
             }
-            composable(route = Screens.Edit.name+"/{eId}"){
-                var eId = it.arguments?.getString("eId")
-                EditScreen(padding, LocalContext.current, mainViewModel, navController, eId)
+            composable(route = Screens.Edit.name + "/{eId}") {
+                val eId = it.arguments?.getString("eId")
+                if (eId != null) {
+                    EditScreen(padding, mainViewModel, navController, eId)
+                }
                 state = false
             }
         }
@@ -157,10 +166,10 @@ fun LandingScreen(
                 if (category == options[it]) {
                     Button(
                         onClick = {
-                            if (category == options[it]) {
-                                category = ""
+                            category = if (category == options[it]) {
+                                ""
                             } else {
-                                category = options[it]
+                                options[it]
                             }
                         }, modifier = Modifier
                             .height(50.dp)
@@ -217,14 +226,14 @@ fun Content(event: Event, mainViewModel: MainViewModel, navController: NavHostCo
         ),
         modifier = Modifier
             .width(300.dp)
-            .height(165.dp)
+            .height(150.dp)
             .padding(10.dp)
     ) {
         ConstraintLayout(Modifier.fillMaxSize()) {
-            val (categ, fn, ln, dt, icns) = createRefs()
+            val (categ, fn, dt, nt, icns) = createRefs()
 
             Row(Modifier.constrainAs(categ) {
-                top.linkTo(parent.top, margin = 10.dp)
+                top.linkTo(parent.top, margin = 15.dp)
                 start.linkTo(parent.start, margin = 10.dp)
             }) {
                 Text(
@@ -237,23 +246,32 @@ fun Content(event: Event, mainViewModel: MainViewModel, navController: NavHostCo
                 top.linkTo(categ.bottom, margin = 5.dp)
                 start.linkTo(parent.start, margin = 10.dp)
             }) {
-                Text(text = "First Name: ", color = MaterialTheme.colorScheme.primary)
-                Text(text = event.fname)
-            }
-            Row(Modifier.constrainAs(ln) {
-                top.linkTo(fn.bottom, margin = 5.dp)
-                start.linkTo(parent.start, margin = 10.dp)
-            }) {
-                Text(text = "Last Name: ", color = MaterialTheme.colorScheme.primary)
+                Text(text = "Name: ", color = MaterialTheme.colorScheme.primary)
+                Text(text = event.fname + " ")
                 Text(text = event.lname)
             }
             Row(Modifier.constrainAs(dt) {
-                top.linkTo(ln.bottom, margin = 5.dp)
+                top.linkTo(fn.bottom, margin = 5.dp)
                 start.linkTo(parent.start, margin = 10.dp)
             }) {
                 Text(text = "Date of event: ", color = MaterialTheme.colorScheme.primary)
                 Text(text = event.date)
             }
+            Text(
+                text = if (event.note.length > 35) {
+                    event.note.substring(0, 30) + "..."
+                } else {
+                    event.note
+                },
+                color = MaterialTheme.colorScheme.primary,
+                fontSize = 12.sp,
+                modifier = Modifier
+                    .constrainAs(nt) {
+                        top.linkTo(dt.bottom, margin = 5.dp)
+                        start.linkTo(parent.start, margin = 15.dp)
+                        end.linkTo(icns.start, margin = 15.dp)
+                        width = Dimension.fillToConstraints
+                    })
             Column(Modifier.constrainAs(icns) {
                 top.linkTo(parent.top)
                 bottom.linkTo(parent.bottom)
@@ -266,8 +284,8 @@ fun Content(event: Event, mainViewModel: MainViewModel, navController: NavHostCo
                     Icon(Icons.Default.Delete, "delete")
                 }
                 IconButton(onClick = {
-                    var eId = event.eid
-                    navController.navigate(route = Screens.Edit.name+"/$eId")
+                    val eId = event.eid
+                    navController.navigate(route = Screens.Edit.name + "/$eId")
                 }) {
                     Icon(Icons.Default.Edit, "edit")
                 }
@@ -388,7 +406,7 @@ fun AddScreen(
                 trailingIcon = {
                     IconButton(onClick = {}) {
                         Icon(
-                            if (ddm == true) {
+                            if (ddm) {
                                 Icons.Filled.KeyboardArrowUp
                             } else {
                                 Icons.Filled.KeyboardArrowDown
@@ -428,10 +446,12 @@ fun AddScreen(
 
         Button(onClick = {
             isDialogShown = true
-        }, shape = RoundedCornerShape(10.dp), modifier = Modifier.constrainAs(cal) {
-            start.linkTo(parent.start)
-            end.linkTo(parent.end)
-        }) {
+        }, shape = RoundedCornerShape(10.dp), modifier = Modifier
+            .width(175.dp)
+            .constrainAs(cal) {
+                start.linkTo(parent.start)
+                end.linkTo(parent.end)
+            }) {
             Text(text = "Set Date")
         }
 
@@ -532,7 +552,7 @@ fun AddScreen(
             }, title = {
                 Text(text = "Add details")
             }, text = {
-                ConstraintLayout() {
+                ConstraintLayout {
                     val (num, tim, tim2) = createRefs()
                     val mvChain =
                         createVerticalChain(num, tim, tim2, chainStyle = ChainStyle.SpreadInside)
@@ -548,7 +568,7 @@ fun AddScreen(
                             trailingIcon = {
                                 IconButton(onClick = {}) {
                                     Icon(
-                                        if (dddm == true) {
+                                        if (dddm) {
                                             Icons.Filled.KeyboardArrowUp
                                         } else {
                                             Icons.Filled.KeyboardArrowDown
@@ -562,21 +582,27 @@ fun AddScreen(
                                     text = { Text(text = selectionOption) },
                                     onClick = {
                                         if (date != null) {
-                                            if (selectionOption == times[0]) {
-                                                remindSelect = times[0]
-                                                remindMeAt = (date!!.minusDays(1))
-                                            } else if (selectionOption == times[1]) {
-                                                remindSelect = times[1]
-                                                remindMeAt = (date!!.minusDays(2))
-                                            } else if (selectionOption == times[2]) {
-                                                remindSelect = times[2]
-                                                remindMeAt = (date!!.minusDays(3))
-                                            } else if (selectionOption == times[3]) {
-                                                remindSelect = times[3]
-                                                remindMeAt = (date!!.minusDays(7))
-                                            } else if (selectionOption == times[4]) {
-                                                remindSelect = times[4]
-                                                remindMeAt = (date!!.minusDays(14))
+                                            when (selectionOption) {
+                                                times[0] -> {
+                                                    remindSelect = times[0]
+                                                    remindMeAt = (date!!.minusDays(1))
+                                                }
+                                                times[1] -> {
+                                                    remindSelect = times[1]
+                                                    remindMeAt = (date!!.minusDays(2))
+                                                }
+                                                times[2] -> {
+                                                    remindSelect = times[2]
+                                                    remindMeAt = (date!!.minusDays(3))
+                                                }
+                                                times[3] -> {
+                                                    remindSelect = times[3]
+                                                    remindMeAt = (date!!.minusDays(7))
+                                                }
+                                                times[4] -> {
+                                                    remindSelect = times[4]
+                                                    remindMeAt = (date!!.minusDays(14))
+                                                }
                                             }
                                             dddm = false
                                         } else {
@@ -595,6 +621,7 @@ fun AddScreen(
                         value = phNumber,
                         onValueChange = { phNumber = it },
                         singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         label = { Text("Mobile Number") },
                         placeholder = {
                             Text(
@@ -608,14 +635,19 @@ fun AddScreen(
                         onValueChange = { notesToSend = it },
                         label = { Text("Notes To Send") },
                         placeholder = {
-                            if (eventCategory == "Birthday") {
-                                notesToSend = placeHolders[0]
-                            } else if (eventCategory == "Wedding") {
-                                notesToSend = placeHolders[1]
-                            } else if (eventCategory == "MemorialDay") {
-                                notesToSend = placeHolders[2]
-                            } else if (eventCategory == "OtherEvents") {
-                                notesToSend = placeHolders[3]
+                            when (eventCategory) {
+                                "Birthday" -> {
+                                    notesToSend = placeHolders[0]
+                                }
+                                "Wedding" -> {
+                                    notesToSend = placeHolders[1]
+                                }
+                                "MemorialDay" -> {
+                                    notesToSend = placeHolders[2]
+                                }
+                                "OtherEvents" -> {
+                                    notesToSend = placeHolders[3]
+                                }
                             }
                             Text(
                                 text = notesToSend
@@ -629,15 +661,248 @@ fun AddScreen(
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun EditScreen(
     padding: PaddingValues,
-    current: Context,
     mainViewModel: MainViewModel,
     navController: NavHostController,
-    eId: String?
+    eId: String
 ) {
-    var eEvent = eId?.toInt()
-    val eventDetails = eEvent?.let { mainViewModel.getById(it) }
-    Text(text = eventDetails.toString())
+    var x = 0
+    val eValue = eId.toInt()
+    val eventList = mainViewModel.allData.collectAsState(initial = listOf())
+    var eCateg by remember {
+        mutableStateOf("")
+    }
+    var eFName by remember {
+        mutableStateOf("")
+    }
+    var eLName by remember {
+        mutableStateOf("")
+    }
+    var eNote by remember {
+        mutableStateOf("")
+    }
+    var eDate by remember {
+        mutableStateOf("")
+    }
+    var eRemindDate by remember {
+        mutableStateOf("")
+    }
+    var eNumber by remember {
+        mutableStateOf("")
+    }
+    var eNNote by remember {
+        mutableStateOf("")
+    }
+    var eMessage by remember {
+        mutableStateOf(false)
+    }
+    while (x < eventList.value.size) {
+        if (eventList.value[x].eid == eValue) {
+            eCateg = (eventList.value[x].category)
+            eFName = (eventList.value[x].fname)
+            eLName = (eventList.value[x].lname)
+            eNote = (eventList.value[x].note)
+            eDate = (eventList.value[x].date)
+            eRemindDate = (eventList.value[x].toRemind)
+        }
+        x++
+    }
+    ConstraintLayout(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(padding)
+    ) {
+        val (type, fnm, lnm, cal, rem, note, nnote, num, buttons) = createRefs()
+        val options = listOf("Birthday", "Wedding", "MemorialDay", "OtherEvents")
+        var isDialogShown: Boolean by rememberSaveable {
+            mutableStateOf(false)
+        }
+        var isDialog2Shown: Boolean by rememberSaveable {
+            mutableStateOf(false)
+        }
+        var ddm by remember {
+            mutableStateOf(false)
+        }
+        val evChain =
+            createVerticalChain(
+                type,
+                fnm,
+                lnm,
+                cal,
+                rem,
+                note,
+                num,
+                nnote,
+                buttons,
+                chainStyle = ChainStyle.Spread
+            )
+
+        if (isDialogShown) {
+            DatePickerDialog(
+                onDismissRequest = { isDialogShown = false },
+                onDateChange = {
+                    eDate = it.toString()
+                    isDialogShown = false
+                },
+                title = { Text(text = "Select the date of the event") }
+            )
+        }
+        if (isDialog2Shown) {
+            DatePickerDialog(
+                onDismissRequest = { isDialog2Shown = false },
+                onDateChange = {
+                    eRemindDate = it.toString()
+                    isDialog2Shown = false
+                },
+                title = { Text(text = "Select a date for the reminder") }
+            )
+        }
+
+        ExposedDropdownMenuBox(expanded = ddm,
+            onExpandedChange = { ddm = !ddm },
+            modifier = Modifier
+                .constrainAs(type) {
+                    start.linkTo(parent.start)
+                    end.linkTo(parent.end)
+                }) {
+            TextField(
+                modifier = Modifier.menuAnchor(),
+                value = eCateg,
+                onValueChange = { eCateg = it },
+                label = { Text(text = "Event Type") },
+                trailingIcon = {
+                    IconButton(onClick = {}) {
+                        Icon(
+                            if (ddm) {
+                                Icons.Filled.KeyboardArrowUp
+                            } else {
+                                Icons.Filled.KeyboardArrowDown
+                            }, contentDescription = ""
+                        )
+                    }
+                })
+            ExposedDropdownMenu(expanded = ddm, onDismissRequest = { ddm = false }) {
+                options.forEach { selectionOption ->
+                    DropdownMenuItem(text = { Text(text = selectionOption) }, onClick = {
+                        eCateg = selectionOption
+                        ddm = false
+                    })
+                }
+            }
+        }
+
+        OutlinedTextField(
+            value = eFName,
+            onValueChange = { eFName = it },
+            singleLine = true,
+            label = { Text(text = "First name") },
+            modifier = Modifier.constrainAs(fnm) {
+                start.linkTo(parent.start)
+                end.linkTo(parent.end)
+            })
+
+        OutlinedTextField(
+            value = eLName,
+            onValueChange = { eLName = it },
+            singleLine = true,
+            label = { Text(text = "Last name") },
+            modifier = Modifier.constrainAs(lnm) {
+                start.linkTo(parent.start)
+                end.linkTo(parent.end)
+            })
+
+        ConstraintLayout(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .wrapContentHeight()
+                .constrainAs(cal) {
+                    start.linkTo(parent.start)
+                    end.linkTo(parent.end)
+                }) {
+            val (date, remind) = createRefs()
+            val ehChain =
+                createHorizontalChain(date, remind, chainStyle = ChainStyle.SpreadInside)
+            Button(onClick = {
+                isDialogShown = true
+            }, shape = RoundedCornerShape(10.dp), modifier = Modifier
+                .width(140.dp)
+                .constrainAs(date) {
+                    top.linkTo(parent.top)
+                    bottom.linkTo(parent.bottom)
+                }) {
+                Text(text = "Event Date")
+            }
+            Button(onClick = {
+                isDialog2Shown = true
+            }, shape = RoundedCornerShape(10.dp), modifier = Modifier
+                .width(140.dp)
+                .constrainAs(remind) {
+                    top.linkTo(parent.top)
+                    bottom.linkTo(parent.bottom)
+                }) {
+                Text(text = "Reminder Date")
+            }
+        }
+
+        OutlinedTextField(value = eNumber,
+            onValueChange = { eNumber = it },
+            label = { Text(text = "Phone Number") },
+            singleLine = true,
+            trailingIcon = {
+                Row {
+                    Icon(Icons.Filled.Email, contentDescription = "", modifier = Modifier.align(CenterVertically))
+                    RadioButton(selected = eMessage, onClick = { eMessage = !eMessage })
+                }
+            },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier
+                .constrainAs(note) {
+                    start.linkTo(parent.start)
+                    end.linkTo(parent.end)
+                })
+
+        OutlinedTextField(value = eNNote,
+            onValueChange = { eNNote = it },
+            label = { Text(text = "SMS Note") },
+            modifier = Modifier
+                .constrainAs(num) {
+                    start.linkTo(parent.start)
+                    end.linkTo(parent.end)
+                })
+
+        OutlinedTextField(value = eNote,
+            onValueChange = { eNote = it },
+            label = { Text(text = "In-App Note") },
+            modifier = Modifier
+                .constrainAs(nnote) {
+                    start.linkTo(parent.start)
+                    end.linkTo(parent.end)
+                })
+
+        Button(onClick = {
+            mainViewModel.updateEvent(
+                event = Event(
+                    eid = eValue,
+                    category = eCateg,
+                    fname = eFName,
+                    lname = eLName,
+                    note = eNote,
+                    date = eDate,
+                    toRemind = eRemindDate
+                )
+            )
+            navController.navigate(route = Screens.Home.name)
+        }, shape = RoundedCornerShape(10.dp), modifier = Modifier
+            .width(175.dp)
+            .constrainAs(buttons) {
+                start.linkTo(parent.start)
+                end.linkTo(parent.end)
+            }) {
+            Text(text = "Submit")
+        }
+    }
 }
