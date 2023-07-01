@@ -1,12 +1,15 @@
 package com.example.remindmeahead
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.provider.ContactsContract
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Column
@@ -65,20 +68,30 @@ import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ChainStyle
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
+import androidx.core.content.ContextCompat
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.work.Data
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequest
+import androidx.work.WorkManager
+import com.example.remindmeahead.NotifyWork.Companion.NOTIFICATION_WORK
 import com.example.remindmeahead.database.Event
 import com.example.remindmeahead.database.MainViewModel
-
 import com.example.remindmeahead.ui.theme.AppTheme
 import com.marosseleng.compose.material3.datetimepickers.date.ui.dialog.DatePickerDialog
 import dagger.hilt.android.AndroidEntryPoint
+import java.text.SimpleDateFormat
 import java.time.LocalDate
+import java.util.Date
+import java.util.concurrent.TimeUnit
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    private lateinit var checkNotificationPermission: ActivityResultLauncher<String>
+    private var isPermission = false
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -96,6 +109,40 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+    private fun checkPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED
+            ) {
+                isPermission = true
+            } else {
+                isPermission = false
+
+                checkNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        } else {
+            isPermission = true
+        }
+    }
+    private fun scheduleNotification(delay: Long) {
+        val format = SimpleDateFormat("yyyy-MM-dd")
+//        val strdate = mainView add the variable toRemind
+//        val date: Date = form
+//        at.parse(strdate)
+        val data = Data.Builder()
+            .putString("date", format.format(date))
+            .build()
+
+        val notificationWork = OneTimeWorkRequest.Builder(NotifyWork::class.java)
+            .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+            .setInputData(data)
+            .build()
+
+        val instanceWorkManager = WorkManager.getInstance(this)
+        instanceWorkManager.beginUniqueWork(NOTIFICATION_WORK,
+            ExistingWorkPolicy.REPLACE, notificationWork).enqueue()
     }
 }
 
