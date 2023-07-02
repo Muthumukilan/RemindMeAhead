@@ -26,4 +26,5 @@ interface dbDao {
     fun getById(eid:Int):Flow<List<Event>>
     @Query("select * from eventTable where category=:category")
     fun getByCat(category:String):Flow<List<Event>>
+
 }

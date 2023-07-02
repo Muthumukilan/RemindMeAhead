@@ -5,11 +5,13 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.provider.ContactsContract
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Column
@@ -52,6 +54,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -85,6 +89,7 @@ import com.marosseleng.compose.material3.datetimepickers.date.ui.dialog.DatePick
 import dagger.hilt.android.AndroidEntryPoint
 import java.text.SimpleDateFormat
 import java.time.LocalDate
+import java.util.Calendar
 import java.util.Date
 import java.util.concurrent.TimeUnit
 
@@ -96,19 +101,62 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+
         val mainViewModel: MainViewModel by viewModels()
+
 
         setContent {
             AppTheme {
+                val getPermision = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()){
+                        isGenerate->
+                    if(isGenerate){
+                    }else{
+                    }
+                }
+                SideEffect {
+                    getPermision.launch(Manifest.permission.SEND_SMS)
+                    //getPermision.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
                 // A surface container using the 'background' color from the theme
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+
                     HomeScaffold(mainViewModel)
+                    var data=mainViewModel.allData.collectAsState(initial = listOf())
+                    val dates1=convertStateToList(data)
+                    callWorkManager(dates1,mainViewModel)
+                    checkPermission()
                 }
             }
         }
+    }
+    fun convertStateToList(state: State<List<Event>>): List<Event> {
+        return state.value
+    }
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun changeYear(newYear :String, dateString :String):String{
+        val newDateString = newYear + dateString.substring(4)
+
+        return newDateString
+    }
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun callWorkManager(dates:List<Event>, mainViewModel: MainViewModel){
+        val currentYear = LocalDate.now().year.toString()
+        for (date in dates){
+            if(date.toRemind != "null"){
+                val newDate=changeYear(currentYear,date.toRemind)
+                Log.d("test","in")
+                Log.d("test",date.toRemind.toString())
+                scheduleNotification(strdate = newDate, number = date.number, notesToSent = date.notesToSend, cat = date.category, sent = date.sent, fname = date.fname)
+            }
+            else{
+                val newDate=changeYear(currentYear,date.date)
+                Log.d("test","out")
+                scheduleNotification(strdate = newDate, number = date.number, notesToSent = date.notesToSend, cat = date.category, sent = date.sent, fname = date.fname)
+            }
+            }
     }
     private fun checkPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -126,17 +174,37 @@ class MainActivity : ComponentActivity() {
             isPermission = true
         }
     }
-    private fun scheduleNotification(delay: Long) {
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun scheduleNotification(strdate:String, number:String, notesToSent:String, sent:Boolean, cat:String, fname:String) {
+        val currentTime = Date()
         val format = SimpleDateFormat("yyyy-MM-dd")
-//        val strdate = mainView add the variable toRemind
-//        val date: Date = form
-//        at.parse(strdate)
+        val date: Date = format.parse(strdate)
+        val targetTime=Date(date.year,date.month,date.date,8,0,0)
         val data = Data.Builder()
             .putString("date", format.format(date))
+            .putString("number", number)
+            .putString("notesToSent", notesToSent)
+            .putString("category",cat)
+            .putString("fname",fname)
+            .putBoolean("sent",sent)
             .build()
+        val delay=targetTime.time-currentTime.time
 
+        var delay1:Long
+        if(delay>0){
+            delay1=delay
+        }
+        else{
+            val newTargetTime=Date(date.year+1,date.month,date.date,8,0,0)
+            delay1=newTargetTime.time-currentTime.time
+        }
+        Log.d("tag",date.year.toString())
+        Log.d("tag",date.month.toString())
+        Log.d("tag",targetTime.toString())
+        Log.d("tag",currentTime.toString())
+        Log.d("tag",delay1.toString())
         val notificationWork = OneTimeWorkRequest.Builder(NotifyWork::class.java)
-            .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+            .setInitialDelay(delay1, TimeUnit.MILLISECONDS)
             .setInputData(data)
             .build()
 
@@ -155,6 +223,7 @@ enum class Screens {
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun HomeScaffold(mainViewModel: MainViewModel) {
+
     val navController = rememberNavController()
     var state by remember {
         mutableStateOf(true)
@@ -405,9 +474,7 @@ fun AddScreen(
         var phNumber by remember {
             mutableStateOf("")
         }
-        var tillDate by remember {
-            mutableStateOf("")
-        }
+
         var notesToSend by remember {
             mutableStateOf("")
         }
@@ -533,7 +600,7 @@ fun AddScreen(
             }
             Button(
                 onClick = {
-                    mainViewModel.addEvent(
+                    if(date!=null){mainViewModel.addEvent(
                         Event(
                             fname = firstName,
                             lname = lastName,
@@ -541,7 +608,10 @@ fun AddScreen(
                             category = eventCategory,
                             date = date.toString(), toRemind = date.toString(),
                         )
-                    )
+                    )}
+                    else{
+                        Toast.makeText(context, "Invalid Date", Toast.LENGTH_SHORT).show()
+                    }
                     navController.navigate(route = Screens.Home.name)
                 }, modifier = Modifier
                     .padding(end = 35.dp)
@@ -585,7 +655,7 @@ fun AddScreen(
                 TextButton(onClick = {
                     moreOptions = false
                     phNumber = ""
-                    mainViewModel.addEvent(
+                    if(date!=null){mainViewModel.addEvent(
                         Event(
                             fname = firstName,
                             lname = lastName,
@@ -593,7 +663,11 @@ fun AddScreen(
                             category = eventCategory,
                             date = date.toString(), toRemind = remindMeAt.toString(),
                         )
-                    )
+                    )}
+                    else{
+
+                        Toast.makeText(context, "Invalid date", Toast.LENGTH_SHORT).show()
+                    }
                     navController.navigate(route = Screens.Home.name)
                 }) {
                     Text(text = "Remind Only")
@@ -611,8 +685,8 @@ fun AddScreen(
                             .constrainAs(num) {}) {
                         TextField(
                             modifier = Modifier.menuAnchor(),
-                            value = tillDate,
-                            onValueChange = { tillDate = it },
+                            value = remindSelect,
+                            onValueChange = { remindSelect = it },
                             label = { Text(text = "Remind Me Ahead") },
                             trailingIcon = {
                                 IconButton(onClick = {}) {
@@ -757,7 +831,7 @@ fun EditScreen(
             eDate = (eventList.value[x].date)
             eRemindDate = (eventList.value[x].toRemind)
             eMessage=(eventList.value[x].sent)
-            eNNote=(eventList.value[x].note)
+            eNNote=(eventList.value[x].notesToSend)
             eNumber=(eventList.value[x].number)
         }
         x++

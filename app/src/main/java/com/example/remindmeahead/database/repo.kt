@@ -13,4 +13,5 @@ class repo(private val dbDao: dbDao) {
     fun getAll(): Flow<List<Event>> = dbDao.getAll()
     fun getById(eid:Int): Flow<List<Event>> = dbDao.getById(eid = eid)
     fun getByCat(category:String): Flow<List<Event>> = dbDao.getByCat(category = category)
+
 }

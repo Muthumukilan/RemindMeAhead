@@ -48,5 +48,4 @@ class MainViewModel
     override fun updateEvent(event: Event) {
         ioScope.launch { repo.updateEvent(event) }
     }
-
 }

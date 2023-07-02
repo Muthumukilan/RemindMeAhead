@@ -20,6 +20,7 @@ import android.media.RingtoneManager.getDefaultUri
 import android.os.Build.VERSION.SDK_INT
 import android.os.Build.VERSION_CODES.O
 import android.os.Build.VERSION_CODES.S
+import android.telephony.SmsManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationCompat.DEFAULT_ALL
 import androidx.core.app.NotificationCompat.PRIORITY_MAX
@@ -31,13 +32,29 @@ class NotifyWork(context: Context, params: WorkerParameters) : Worker(context, p
     //add view model above
     override fun doWork(): Result {
         val id = inputData.getLong(NOTIFICATION_ID, 0).toInt()
-        sendNotification(id)
-
+        val number=inputData.getString("number")
+        val notesToSent = inputData.getString("notesToSent")
+        val category1=inputData.getString("category")
+        val sent=inputData.getBoolean("sent",false)
+        val fname=inputData.getString("fname")
+        val category=category1+" "+fname
+        if (notesToSent != null && category != null) {
+                sendNotification(id, notesToSent = notesToSent, category = category)
+        }
+        if (sent){
+            if (number != null && notesToSent != null) {
+                sendSMS(number = number,notesToSent)
+            }
+        }
         return success()
     }
 
+    private fun sendSMS(number:String,notesToSent:String){
+        val smsManager: SmsManager = SmsManager.getDefault()
+        smsManager.sendTextMessage(number, null, notesToSent, null, null)
+    }
     @SuppressLint("UnspecifiedImmutableFlag")
-    private fun sendNotification(id: Int) {
+    private fun sendNotification(id: Int,notesToSent:String,category:String) {
         val intent = Intent(applicationContext, MainActivity::class.java)
         intent.flags = FLAG_ACTIVITY_NEW_TASK or FLAG_ACTIVITY_CLEAR_TASK
         intent.putExtra(NOTIFICATION_ID, id)
@@ -46,8 +63,8 @@ class NotifyWork(context: Context, params: WorkerParameters) : Worker(context, p
             applicationContext.getSystemService(NOTIFICATION_SERVICE) as NotificationManager
 
         val bitmap = applicationContext.vectorToBitmap(R.drawable.ic_schedule_black_24dp)
-        val titleNotification = applicationContext.getString(R.string.notification_title)
-        val subtitleNotification = applicationContext.getString(R.string.notification_subtitle)
+        val titleNotification = category
+        val subtitleNotification = notesToSent
         val pendingIntent = if (SDK_INT >= S) {
             getActivity(applicationContext, 0, intent, PendingIntent.FLAG_MUTABLE)
         } else {
