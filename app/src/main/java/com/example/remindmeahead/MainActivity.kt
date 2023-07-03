@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -89,7 +88,6 @@ import com.marosseleng.compose.material3.datetimepickers.date.ui.dialog.DatePick
 import dagger.hilt.android.AndroidEntryPoint
 import java.text.SimpleDateFormat
 import java.time.LocalDate
-import java.util.Calendar
 import java.util.Date
 import java.util.concurrent.TimeUnit
 
@@ -126,7 +124,7 @@ class MainActivity : ComponentActivity() {
                     HomeScaffold(mainViewModel)
                     var data=mainViewModel.allData.collectAsState(initial = listOf())
                     val dates1=convertStateToList(data)
-                    callWorkManager(dates1,mainViewModel)
+                    callWorkManager(dates1)
                     checkPermission()
                 }
             }
@@ -142,18 +140,17 @@ class MainActivity : ComponentActivity() {
         return newDateString
     }
     @RequiresApi(Build.VERSION_CODES.O)
-    fun callWorkManager(dates:List<Event>, mainViewModel: MainViewModel){
+    fun callWorkManager(dates:List<Event>){
         val currentYear = LocalDate.now().year.toString()
         for (date in dates){
             if(date.toRemind != "null"){
                 val newDate=changeYear(currentYear,date.toRemind)
-                Log.d("test","in")
-                Log.d("test",date.toRemind.toString())
+
                 scheduleNotification(strdate = newDate, number = date.number, notesToSent = date.notesToSend, cat = date.category, sent = date.sent, fname = date.fname)
             }
             else{
                 val newDate=changeYear(currentYear,date.date)
-                Log.d("test","out")
+
                 scheduleNotification(strdate = newDate, number = date.number, notesToSent = date.notesToSend, cat = date.category, sent = date.sent, fname = date.fname)
             }
             }
@@ -198,11 +195,7 @@ class MainActivity : ComponentActivity() {
             val newTargetTime=Date(date.year+1,date.month,date.date,8,0,0)
             delay1=newTargetTime.time-currentTime.time
         }
-        Log.d("tag",date.year.toString())
-        Log.d("tag",date.month.toString())
-        Log.d("tag",targetTime.toString())
-        Log.d("tag",currentTime.toString())
-        Log.d("tag",delay1.toString())
+
         val notificationWork = OneTimeWorkRequest.Builder(NotifyWork::class.java)
             .setInitialDelay(delay1, TimeUnit.MILLISECONDS)
             .setInputData(data)

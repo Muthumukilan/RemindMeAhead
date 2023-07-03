@@ -44,6 +44,7 @@ class NotifyWork(context: Context, params: WorkerParameters) : Worker(context, p
         if (sent){
             if (number != null && notesToSent != null) {
                 sendSMS(number = number,notesToSent)
+                sendNotification(id, notesToSent = notesToSent, category = category)
             }
         }
         return success()
